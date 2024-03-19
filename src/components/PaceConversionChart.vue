@@ -3,6 +3,7 @@ const props = defineProps<{
   minPace: string;
   maxPace: string;
   paceIncrement: string;
+  paceZones: string;
 }>();
 
 function kmToMile(speed: number) {
@@ -62,7 +63,45 @@ function secondsToTimeString(seconds: number, opts?: SecondsToTimeStringOptions)
   return str;
 }
 
+type IPaceZones = Record<string, Record<string, number>>;
+
+function parsePaceZones(str: string) {
+  const zones = str
+    .toLowerCase()
+    .split(',')
+    .map((v) => {
+      const [zone, pace_str] = v.split('=');
+
+      return {
+        zone: parseInt(zone.replace(/^z/, ''), 10),
+        pace: convertPaceString(pace_str),
+      };
+    });
+
+  const paceZones: IPaceZones = {};
+
+  zones.forEach((zone) => {
+    paceZones[zone.zone] = zone;
+  });
+
+  return paceZones;
+}
+
+function findPaceZone(pace: number, paceZones: IPaceZones) {
+  let paceZone = 6;
+
+  for (const zone of Object.values(paceZones)) {
+    if (pace >= zone.pace) {
+      paceZone = zone.zone;
+      break;
+    }
+  }
+
+  return paceZone;
+}
+
 type paceTableData = {
+  paceZone: number;
   kmPerHour: number;
   miPerHour: number;
   minsPerKm: number;
@@ -94,10 +133,13 @@ Object.keys(runDistances).forEach((v) => {
 const minPaceSeconds = convertPaceString(props.minPace);
 const maxPaceSeconds = convertPaceString(props.maxPace);
 const paceIncrement = parseInt(props.paceIncrement, 10);
+const paceZones = parsePaceZones(props.paceZones);
 
 for (let pace = minPaceSeconds; pace >= maxPaceSeconds; pace -= paceIncrement) {
   const kmPerHour = calculateKmPerHour(pace);
+  const paceZone = findPaceZone(pace, paceZones);
   const item: paceTableData = {
+    paceZone,
     kmPerHour: kmPerHour,
     miPerHour: kmToMile(kmPerHour),
     minsPerKm: pace,
@@ -120,7 +162,11 @@ for (let pace = minPaceSeconds; pace >= maxPaceSeconds; pace -= paceIncrement) {
       <th v-for="(label, index) in tableData.header" :key="index">{{ label }}</th>
     </thead>
     <tbody>
-      <tr v-for="(data, index) in tableData.data" :key="index">
+      <tr
+        v-for="(data, index) in tableData.data"
+        :key="index"
+        :class="`pace-zone-${data.paceZone}`"
+      >
         <td>{{ formatNumber(data.kmPerHour) }}</td>
         <td>{{ formatNumber(data.miPerHour) }}</td>
         <td>{{ secondsToTimeString(data.minsPerKm) }}</td>
@@ -150,5 +196,24 @@ th {
 }
 td {
   font-family: monospace;
+}
+
+tr.pace-zone-1 {
+  color: gray;
+}
+tr.pace-zone-2 {
+  color: chartreuse;
+}
+tr.pace-zone-3 {
+  color: bisque;
+}
+tr.pace-zone-4 {
+  color: chocolate;
+}
+tr.pace-zone-5 {
+  color: crimson;
+}
+tr.pace-zone-6 {
+  color: firebrick;
 }
 </style>
