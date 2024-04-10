@@ -100,6 +100,10 @@ function findPaceZone(pace: number, paceZones: IPaceZones) {
   return paceZone;
 }
 
+function showZone(zone: number) {
+  document.querySelectorAll('td.pace-zone-' + zone).forEach((v) => {});
+}
+
 type paceTableData = {
   paceZone: number;
   kmPerHour: number;
@@ -134,6 +138,8 @@ const minPaceSeconds = convertPaceString(props.minPace);
 const maxPaceSeconds = convertPaceString(props.maxPace);
 const paceIncrement = parseInt(props.paceIncrement, 10);
 const paceZones = parsePaceZones(props.paceZones);
+//const slowestZone = paceZones.Z1;
+//const fastestZone = paceZones.Z5;
 
 for (let pace = minPaceSeconds; pace >= maxPaceSeconds; pace -= paceIncrement) {
   const kmPerHour = calculateKmPerHour(pace);
@@ -162,6 +168,13 @@ for (let pace = minPaceSeconds; pace >= maxPaceSeconds; pace -= paceIncrement) {
       <th v-for="(label, index) in tableData.header" :key="index">{{ label }}</th>
     </thead>
     <tbody>
+      <tr>
+        <td colspan="6">
+          <a href="#" :on-click="showZone(1)"
+            >&DoubleUpArrow;&DoubleUpArrow; Show slower &DoubleUpArrow;&DoubleUpArrow;</a
+          >
+        </td>
+      </tr>
       <tr
         v-for="(data, index) in tableData.data"
         :key="index"
@@ -173,6 +186,13 @@ for (let pace = minPaceSeconds; pace >= maxPaceSeconds; pace -= paceIncrement) {
         <td>{{ secondsToTimeString(data.minsPerMi) }}</td>
         <td v-for="(time, tindex) in data.distanceTime" :key="tindex">
           {{ secondsToTimeString(time, { hours: true, sep: 'hms' }) }}
+        </td>
+      </tr>
+      <tr>
+        <td colspan="6">
+          <a href="#" :on-click="showZone(5)"
+            >&DoubleDownArrow;&DoubleDownArrow; Show faster &DoubleDownArrow;&DoubleDownArrow;</a
+          >
         </td>
       </tr>
     </tbody>
@@ -200,6 +220,7 @@ td {
 
 tr.pace-zone-1 {
   color: gray;
+  display: none;
 }
 tr.pace-zone-2 {
   color: chartreuse;
@@ -215,5 +236,6 @@ tr.pace-zone-5 {
 }
 tr.pace-zone-6 {
   color: firebrick;
+  display: none;
 }
 </style>
