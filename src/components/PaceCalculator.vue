@@ -80,55 +80,153 @@ function formatNumber(num: number) {
   }).format(num);
 }
 
-function recalculate() {
-  const seconds = stringToSeconds(calculatorTime.value);
-  const pace = stringToSeconds(calculatorPace.value);
-  const distance = ((1000 / pace) * seconds) / 1000;
+function calculateTotal(calcItem: PaceCalculatorItem) {
+  calcItem.calculate();
 
-  calculatedKilometersPerHour.value = calculateKmPerHour(pace);
+  let totalKilometers = 0;
+  let totalSeconds = 0;
 
-  calculatedDistance.value = isNaN(distance) ? 0 : distance;
+  for (const calc of calculators.value) {
+    totalKilometers += calc.distance;
+    totalSeconds += calc.seconds;
+  }
+
+  totalDistance.value = formatNumber(totalKilometers);
+  totalKilometersPerHour.value = formatNumber(totalKilometers / (totalSeconds / 3600));
 }
 
-const calculatedDistance = ref(0);
-const calculatedKilometersPerHour = ref(0);
-const calculatorTime = ref('');
-const calculatorPace = ref('');
+class PaceCalculatorItem {
+  distance: number = 0;
+  seconds: number = 0;
+  pace: number = 0;
+  repeats: number = 1;
+  kilometersPerHour: number = 0;
+
+  inputTime: string = '';
+  inputPace: string = '';
+
+  calculate() {
+    this.seconds = stringToSeconds(this.inputTime);
+    this.pace = stringToSeconds(this.inputPace);
+
+    if (this.seconds) {
+      this.seconds *= this.repeats;
+    }
+
+    this.kilometersPerHour = calculateKmPerHour(this.pace || 0);
+    this.distance = ((1000 / this.pace) * this.seconds) / 1000 || 0;
+  }
+}
+
+function addCalculator(index: number) {
+  calculators.value.splice(index + 1, 0, new PaceCalculatorItem());
+}
+
+function removeCalculator(index: number) {
+  if (calculators.value.length > 1) {
+    calculators.value.splice(index, 1);
+  }
+}
+
+function incrRepeats(calc: PaceCalculatorItem) {
+  calc.repeats += 1;
+  calculateTotal(calc);
+}
+
+function decrRepeats(calc: PaceCalculatorItem) {
+  if (calc.repeats > 1) {
+    calc.repeats -= 1;
+  }
+  calculateTotal(calc);
+}
+
+const calculators = ref([new PaceCalculatorItem()]);
+const totalDistance = ref(formatNumber(Infinity));
+const totalKilometersPerHour = ref(formatNumber(Infinity));
 </script>
 
 <template>
   <h1>Distance Calculator</h1>
   <div>
     <table>
-      <tbody>
+      <thead>
         <tr>
+          <th>&nbsp;</th>
+          <th>Time</th>
+          <th>Pace</th>
+          <th>Repeats</th>
+          <th>&nbsp;</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(calc, idx) in calculators" :key="idx">
           <td>
-            <p>Time</p>
-            <input type="text" v-model="calculatorTime" @keyup="recalculate()" />
-            (h:mm:ss)
+            <button @click="addCalculator(idx)">&plus;</button>
+            <button @click="removeCalculator(idx)" :disabled="calculators.length == 1">
+              &minus;
+            </button>
           </td>
           <td>
-            <p>Pace</p>
-            <input type="text" v-model="calculatorPace" @keyup="recalculate()" />
-            (mm:ss)
+            {{ idx + 1 }}.
+            <input
+              type="text"
+              class="input-time"
+              placeholder="hh:mm:ss"
+              v-model="calc.inputTime"
+              @keyup="calculateTotal(calc)"
+            />
           </td>
           <td>
-            <p>&nbsp;</p>
+            <input
+              type="text"
+              class="input-pace"
+              placeholder="mm:ss"
+              v-model="calc.inputPace"
+              @keyup="calculateTotal(calc)"
+            />
+          </td>
+          <td>
+            <span>x{{ calc.repeats }}</span
+            >&nbsp;
+            <button @click="incrRepeats(calc)">&plus;</button>
+            <button @click="decrRepeats(calc)" :disabled="calc.repeats == 1">&minus;</button>
+          </td>
+          <td>
             =
             <span class="calculated-distance"
-              >{{ formatNumber(calculatedDistance) }} km ({{
-                formatNumber(calculatedKilometersPerHour)
+              >{{ formatNumber(calc.distance) }} km ({{
+                formatNumber(calc.kilometersPerHour)
               }}
               km/h)</span
             >
           </td>
         </tr>
       </tbody>
+      <tfoot v-if="calculators.length > 1">
+        <tr>
+          <td colspan="4"></td>
+          <td>
+            =
+            <span class="calculated-distance">{{ totalDistance }} km ({{
+              totalKilometersPerHour
+            }}
+            km/h avg.)</span>
+          </td>
+        </tr>
+      </tfoot>
     </table>
   </div>
 </template>
 
 <style scoped>
+input.input-pace {
+  width: 40%;
+}
+
+input.input-time {
+  width: 40%;
+}
+
 table,
 input {
   font-family: monospace;
