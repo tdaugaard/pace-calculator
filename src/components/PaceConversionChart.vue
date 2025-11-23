@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
+
+const tableDisplayEverything = ref(false);
+
 const props = defineProps<{
-  minPace: string;
-  maxPace: string;
+  paceRange: string;
+  visiblePaceRange: string;
   paceIncrement: string;
   paceZones: string;
 }>();
@@ -17,6 +21,12 @@ function mileToKm(speed: number) {
 function calculateKmPerHour(pace: number) {
   const metersPerSecond = 1000 / pace;
   return metersPerSecond * 3.6;
+}
+
+function convertPaceRange(str: string) {
+  const [maxStr, minStr] = str.split('-');
+
+  return [convertPaceString(minStr), convertPaceString(maxStr)].sort((a, b) => b - a);
 }
 
 function convertPaceString(str: string) {
@@ -63,62 +73,79 @@ function secondsToTimeString(seconds: number, opts?: SecondsToTimeStringOptions)
   return str;
 }
 
-type IPaceZones = Record<string, Record<string, number>>;
+type IPaceZones = number[];
 
 function parsePaceZones(str: string) {
-  const zones = str
-    .toLowerCase()
+  return str
     .split(',')
-    .map((v) => {
-      const [zone, pace_str] = v.split('=');
-
-      return {
-        zone: parseInt(zone.replace(/^z/, ''), 10),
-        pace: convertPaceString(pace_str),
-      };
-    });
-
-  const paceZones: IPaceZones = {};
-
-  zones.forEach((zone) => {
-    paceZones[zone.zone] = zone;
-  });
-
-  return paceZones;
+    .map(convertPaceString)
 }
 
 function findPaceZone(pace: number, paceZones: IPaceZones) {
-  let paceZone = 6;
-
-  for (const zone of Object.values(paceZones)) {
-    if (pace >= zone.pace) {
-      paceZone = zone.zone;
-      break;
+  for (const [zone, zpace] of paceZones.entries()) {
+    if (pace >= zpace) {
+      return zone + 1;
     }
   }
 
-  return paceZone;
+  return 6;
 }
 
-type paceTableData = {
+class PaceTableData {
   paceZone: number;
   kmPerHour: number;
   miPerHour: number;
   minsPerKm: number;
   minsPerMi: number;
   distanceTime: number[];
-};
-type paceTable = {
-  header: string[];
-  data: paceTableData[];
+
+  constructor(
+    paceZone: number,
+    kmPerHour: number,
+    miPerHour: number,
+    minsPerKm: number,
+    minsPerMi: number,
+    distanceTime: number[] = []
+  ) {
+    this.paceZone = paceZone
+    this.kmPerHour = kmPerHour
+    this.miPerHour = miPerHour
+    this.minsPerKm = minsPerKm
+    this.minsPerMi = minsPerMi
+    this.distanceTime = distanceTime
+  }
 };
 
-// In kilometers
+class PaceTableDivider {
+  label: string;
+
+  constructor(label: string) {
+    this.label = label;
+  }
+};
+
+type paceTableRow = PaceTableData | PaceTableDivider;
+
+type paceTable = {
+  header: string[];
+  data: paceTableRow[];
+};
+
+const paceZoneLabels = [
+  'Recovery',
+  'Endurance',
+  'Tempo',
+  'Threshold',
+  'VO2 Max',
+  'Anaerobic',
+]
+
+// In meters
 const runDistances = {
-  '5K': 5,
-  '10K': 10,
-  'Half Marathon': 21.0975,
-  Marathon: 42.195,
+  '5K': 5000,
+  '10K': 10000,
+  'Half Marathon': 21975,
+  'Marathon': 42195,
 };
 
 const tableData: paceTable = {
@@ -130,56 +157,104 @@ Object.keys(runDistances).forEach((v) => {
   tableData.header.push(v);
 });
 
-const minPaceSeconds = convertPaceString(props.minPace);
-const maxPaceSeconds = convertPaceString(props.maxPace);
+const [paceRangeMin, paceRangeMax] = convertPaceRange(props.paceRange);
+const [visiblePaceRangeMin, visiblePaceRangeMax] = convertPaceRange(props.visiblePaceRange);
 const paceIncrement = parseInt(props.paceIncrement, 10);
 const paceZones = parsePaceZones(props.paceZones);
 
-for (let pace = minPaceSeconds; pace >= maxPaceSeconds; pace -= paceIncrement) {
-  const kmPerHour = calculateKmPerHour(pace);
-  const paceZone = findPaceZone(pace, paceZones);
-  const item: paceTableData = {
-    paceZone,
-    kmPerHour: kmPerHour,
-    miPerHour: kmToMile(kmPerHour),
-    minsPerKm: pace,
-    minsPerMi: mileToKm(pace),
-    distanceTime: [],
-  };
-
-  Object.values(runDistances).forEach((v) => {
-    item.distanceTime.push(v * pace);
-  });
-
-  tableData.data.push(item);
+function toggleDataVisibility() {
+  tableDisplayEverything.value = tableDisplayEverything.value ? false : true;
+  renderPaceTable();
 }
+
+function isPaceVisible(pace: number) {
+  if (tableDisplayEverything.value) {
+    return true;
+  }
+  return pace <= visiblePaceRangeMin && pace >= visiblePaceRangeMax;
+}
+
+function renderPaceTable() {
+  const zoneDividersAdded = new Set<number>();
+
+  tableData.data = [];
+  for (let pace = paceRangeMin; pace >= paceRangeMax; pace -= paceIncrement) {
+    if (!isPaceVisible(pace)) {
+      continue;
+    }
+
+    const currentPaceZone = findPaceZone(pace, paceZones);
+    if (!zoneDividersAdded.has(currentPaceZone)) {
+      tableData.data.push(new PaceTableDivider(`Z${currentPaceZone}: ${paceZoneLabels[currentPaceZone - 1]}`));
+      zoneDividersAdded.add(currentPaceZone);
+    }
+
+    const kmPerHour = calculateKmPerHour(pace);
+    const paceZone = findPaceZone(pace, paceZones);
+    const item = new PaceTableData(
+      paceZone,
+      kmPerHour,
+      kmToMile(kmPerHour),
+      pace,
+      mileToKm(pace)
+    );
+
+    Object.values(runDistances).forEach(v => {
+      item.distanceTime.push((v / 1000) * pace);
+    });
+
+    tableData.data.push(item);
+  }
+}
+
+const visibilityButtonLabel = computed(() => {
+  const [minPace, maxPace] = [visiblePaceRangeMin, visiblePaceRangeMax].map(v => secondsToTimeString(v));
+  return tableDisplayEverything.value ? `Show only ${minPace} - ${maxPace}` : 'Show Everything';
+});
+
+renderPaceTable()
 </script>
 
 <template>
   <h1>Running Pace Conversion Chart</h1>
+
+  <nav>
+    <button @click="toggleDataVisibility" class="btn-visibility-toggle">{{ visibilityButtonLabel }}</button>
+  </nav>
+
   <table>
     <thead>
       <th v-for="(label, index) in tableData.header" :key="index">{{ label }}</th>
     </thead>
     <tbody>
-      <tr
-        v-for="(data, index) in tableData.data"
-        :key="index"
-        :class="`pace-zone-${data.paceZone}`"
-      >
-        <td>{{ formatNumber(data.kmPerHour) }}</td>
-        <td>{{ formatNumber(data.miPerHour) }}</td>
-        <td>{{ secondsToTimeString(data.minsPerKm) }}</td>
-        <td>{{ secondsToTimeString(data.minsPerMi) }}</td>
-        <td v-for="(time, tindex) in data.distanceTime" :key="tindex">
-          {{ secondsToTimeString(time, { hours: true, sep: 'hms' }) }}
-        </td>
-      </tr>
+      <template v-for="(data, index) in tableData.data" :key="index">
+        <tr v-if="data instanceof PaceTableDivider">
+          <th :colspan="tableData.header.length" style="text-align: left; padding-top: 1em;">
+            {{ data.label }}
+          </th>
+        </tr>
+        <tr v-else-if="data instanceof PaceTableData" :class="`pace-zone-${data.paceZone}`">
+          <td>{{ formatNumber(data.kmPerHour) }}</td>
+          <td>{{ formatNumber(data.miPerHour) }}</td>
+          <td>{{ secondsToTimeString(data.minsPerKm) }}</td>
+          <td>{{ secondsToTimeString(data.minsPerMi) }}</td>
+          <td v-for="(time, tindex) in data.distanceTime" :key="tindex">
+            {{ secondsToTimeString(time, { hours: true, sep: 'hms' }) }}
+          </td>
+        </tr>
+      </template>
     </tbody>
   </table>
 </template>
 
 <style scoped>
+.btn-visibility-toggle {
+  margin-bottom: 1em;
+  padding: 0.5em 1em;
+  font-size: 1em;
+  width: 20vw;
+}
+
 table {
   width: 100vh;
   font-size: 1.1em;
@@ -194,6 +269,7 @@ th {
   text-transform: uppercase;
   font-weight: bold;
 }
+
 td {
   font-family: monospace;
 }
@@ -201,18 +277,23 @@ td {
 tr.pace-zone-1 {
   color: gray;
 }
+
 tr.pace-zone-2 {
   color: chartreuse;
 }
+
 tr.pace-zone-3 {
   color: bisque;
 }
+
 tr.pace-zone-4 {
   color: chocolate;
 }
+
 tr.pace-zone-5 {
   color: crimson;
 }
+
 tr.pace-zone-6 {
   color: firebrick;
 }

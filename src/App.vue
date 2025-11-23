@@ -7,10 +7,10 @@ import PaceConversionChart from './components/PaceConversionChart.vue';
   <main>
     <PaceCalculator />
     <PaceConversionChart
-      minPace="8:30"
-      maxPace="2:30"
+      paceRange="8:30-2:30"
+      visiblePaceRange="6:30-3:55"
       paceIncrement="5"
-      paceZones="Z1=6:21,Z2=5:28,Z3=4:54,Z4=4:36,Z5=4:00"
+      paceZones="6:17,5:25,4:52,4:33,4:17,2:00"
     />
   </main>
 </template>
