@@ -91,6 +91,17 @@ function findPaceZone(pace: number, paceZones: IPaceZones) {
   return 6;
 }
 
+function getPaceZoneLabel(paceZones: IPaceZones, paceZone: number) {
+  if (paceZone === 6) {
+    return `> ${secondsToTimeString(paceZones[paceZones.length - 1])}`;
+  }
+  if (paceZone === 1) {
+    return `< ${secondsToTimeString(paceZones[0])}`;
+  }
+
+  return `${secondsToTimeString(paceZones[paceZone - 1])} - ${secondsToTimeString(paceZones[paceZone])}`;
+}
+
 class PaceTableData {
   paceZone: number;
   kmPerHour: number;
@@ -185,7 +196,10 @@ function renderPaceTable() {
 
     const currentPaceZone = findPaceZone(pace, paceZones);
     if (!zoneDividersAdded.has(currentPaceZone)) {
-      tableData.data.push(new PaceTableDivider(`Z${currentPaceZone}: ${paceZoneLabels[currentPaceZone - 1]}`));
+      tableData.data.push(new PaceTableDivider(`<span class="pace-zone-${currentPaceZone}">
+        Z${currentPaceZone}: ${paceZoneLabels[currentPaceZone - 1]} (${getPaceZoneLabel(paceZones, currentPaceZone)})
+      </span>`));
+
       zoneDividersAdded.add(currentPaceZone);
     }
 
@@ -229,9 +243,7 @@ renderPaceTable()
     <tbody>
       <template v-for="(data, index) in tableData.data" :key="index">
         <tr v-if="data instanceof PaceTableDivider">
-          <th :colspan="tableData.header.length" style="text-align: left; padding-top: 1em;">
-            {{ data.label }}
-          </th>
+          <th :colspan="tableData.header.length" style="text-align: left; padding-top: 1em;" v-html="data.label"></th>
         </tr>
         <tr v-else-if="data instanceof PaceTableData" :class="`pace-zone-${data.paceZone}`">
           <td>{{ formatNumber(data.kmPerHour) }}</td>
@@ -272,29 +284,5 @@ th {
 
 td {
   font-family: monospace;
-}
-
-tr.pace-zone-1 {
-  color: gray;
-}
-
-tr.pace-zone-2 {
-  color: chartreuse;
-}
-
-tr.pace-zone-3 {
-  color: bisque;
-}
-
-tr.pace-zone-4 {
-  color: chocolate;
-}
-
-tr.pace-zone-5 {
-  color: crimson;
-}
-
-tr.pace-zone-6 {
-  color: firebrick;
 }
 </style>

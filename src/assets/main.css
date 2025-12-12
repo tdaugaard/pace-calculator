@@ -33,3 +33,53 @@ a,
     padding: 0 2rem;
   }
 }
+
+.pace-zone-1 {
+  color: gray;
+}
+
+.pace-zone-2 {
+  color: ForestGreen;
+}
+
+.pace-zone-3 {
+  color: DarkGoldenRod;
+}
+
+.pace-zone-4 {
+  color: chocolate;
+}
+
+.pace-zone-5 {
+  color: crimson;
+}
+
+.pace-zone-6 {
+  color: firebrick;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pace-zone-1 {
+    color: gray;
+  }
+
+  .pace-zone-2 {
+    color: chartreuse;
+  }
+
+  .pace-zone-3 {
+    color: bisque;
+  }
+
+  .pace-zone-4 {
+    color: chocolate;
+  }
+
+  .pace-zone-5 {
+    color: crimson;
+  }
+
+  .pace-zone-6 {
+    color: firebrick;
+  }
+}
