@@ -246,37 +246,24 @@ const totalKilometersPerHour = ref(formatNumber(Infinity));
           </td>
           <td>
             {{ idx + 1 }}.
-            <input
-              type="text"
-              class="input-time"
-              placeholder="hh:mm:ss"
-              v-model="calc.inputTime"
-              @keyup="calculateTotal(calc)"
-            />
+            <input type="text" class="input-time" placeholder="hh:mm:ss" v-model="calc.inputTime"
+              @keyup="calculateTotal(calc)" />
           </td>
           <td>
-            <input
-              type="text"
-              class="input-pace"
-              placeholder="mm:ss"
-              v-model="calc.inputPace"
-              @keyup="calculateTotal(calc)"
-            />
+            <input type="text" class="input-pace" placeholder="mm:ss" v-model="calc.inputPace"
+              @keyup="calculateTotal(calc)" />
           </td>
           <td>
-            <span>x{{ calc.repeats }}</span
-            >&nbsp;
+            <span>x{{ calc.repeats }}</span>&nbsp;
             <button @click="incrRepeats(calc)">&plus;</button>
             <button @click="decrRepeats(calc)" :disabled="calc.repeats == 1">&minus;</button>
           </td>
           <td>
             =
-            <span class="calculated-distance"
-              >{{ formatNumber(calc.distance) }} km ({{
-                formatNumber(calc.kilometersPerHour)
-              }}
-              km/h)</span
-            >
+            <span class="calculated-distance">{{ formatNumber(calc.distance) }} km ({{
+              formatNumber(calc.kilometersPerHour)
+            }}
+              km/h)</span>
           </td>
         </tr>
       </tbody>
