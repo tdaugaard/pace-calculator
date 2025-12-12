@@ -73,6 +73,20 @@ function stringToSeconds(str: string) {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
+function secondsToString(totalSeconds: number, limitParts: number = 3) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+
+  return timePartsToString([hours, minutes, seconds].slice(-limitParts));
+}
+
+function timePartsToString(parts: number[]) {
+  return parts
+    .map((v) => v.toString().padStart(2, '0'))
+    .join(':');
+}
+
 function formatNumber(num: number) {
   return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
@@ -138,6 +152,70 @@ function decrRepeats(calc: PaceCalculatorItem) {
     calc.repeats -= 1;
   }
   calculateTotal(calc);
+}
+
+function importWorkout() {
+  const textarea = document.getElementById('txt-workout-import') as HTMLTextAreaElement;
+  if (!textarea) return;
+
+  const lines = textarea.value.split('\n');
+  const calcs: PaceCalculatorItem[] = [];
+  let numberOfRepeats = 1
+
+  let match
+  for (const line of lines) {
+    match = line.match(/Repeat\s+([0-9]+)\s+times/i);
+    if (match) {
+      numberOfRepeats = parseInt(match[1], 10);
+      continue
+    }
+
+    match = line.match(/^(\s*)([0-9:]+)\s+(min|sec)\s+@\s+(?:([0-9:]+)(?:-([0-9:]+))?)\s*min\/km/i);
+    if (!match) {
+      continue
+    }
+
+    const calcItem = new PaceCalculatorItem();
+
+    // If the line is prefixed with any number of spaces, it's considered a sub-item and will be repeated
+    // if numberOfRepeats > 1
+    if (match[1] && numberOfRepeats > 1) {
+      calcItem.repeats = numberOfRepeats
+    }
+
+    let timeValue: number[] = [];
+    const timeString = match[2]
+    const timeUnitString = match[3]
+
+    if (timeString.includes(':')) {
+      timeValue = parseTimeString(timeString)
+    } else {
+      const value = parseInt(timeString, 10);
+      timeValue = parseTimeString(value + (timeUnitString === 'min' ? 'm' : 's'))
+    }
+
+    calcItem.inputTime = timePartsToString(timeValue)
+
+    if (match[5]) {
+      const minPace = stringToSeconds(match[4])
+      const maxPace = stringToSeconds(match[5])
+
+      calcItem.inputPace = secondsToString((maxPace + minPace) / 2, 2)
+    } else {
+      calcItem.inputPace = secondsToString(stringToSeconds(match[4]), 2)
+    }
+
+    calcs.push(calcItem)
+    calculateTotal(calcItem)
+  }
+
+  if (calcs.length === 0) {
+    alert('No valid pace/time entries found in the workout text.')
+    return
+  }
+
+  calculators.value = calcs;
+  calculateTotal(calcs[0])
 }
 
 const calculators = ref([new PaceCalculatorItem()]);
@@ -207,14 +285,55 @@ const totalKilometersPerHour = ref(formatNumber(Infinity));
           <td colspan="4"></td>
           <td>
             =
-            <span class="calculated-distance">{{ totalDistance }} km ({{
-              totalKilometersPerHour
-            }}
-            km/h avg.)</span>
+            <span class="calculated-distance">{{ totalDistance }} km ({{ totalKilometersPerHour }} km/h avg.)</span>
           </td>
         </tr>
       </tfoot>
     </table>
+  </div>
+  <div>
+    <p>
+      <h3>Import Workout from TrainingPeaks</h3>
+      <textarea id="txt-workout-import">
+# Example workout for testing
+Warm up
+15 min @ 05:44 min/km
+Zone 2
+
+Warm up
+20:30 min @ 05:44-06:33 min/km
+Zone 1-Zone 2
+
+Repeat 15 times
+
+    Hard
+    30 sec @ 03:59-04:22 min/km
+    Zone 5b-Zone 5c
+
+    Easy
+    30 sec @ 05:24-06:07 min/km
+    Zone 1-Zone 2
+
+Cool Down
+10 min @ 05:44-06:33 min/km
+Zone 1-Zone 2
+
+Repeat 7 times
+
+    Hard
+    1:30 min @ 03:59-04:22 min/km
+    Zone 5b-Zone 5c
+
+    Easy
+    30 sec @ 05:24-06:07 min/km
+    Zone 1-Zone 2
+
+Cool Down
+15 min @ 05:44 min/km
+Zone 2
+      </textarea>
+    </p>
+    <button @click="importWorkout()">Import</button>
   </div>
 </template>
 
@@ -234,5 +353,10 @@ input {
 
 .calculated-distance {
   font-size: 1.3em;
+}
+
+textarea {
+  width: 50vw;
+  height: 20vh;
 }
 </style>
