@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
+const ranges: ('from' | 'to')[] = ['from', 'to'];
+
+class RangeValue<T> {
+  from: T;
+  to: T;
+
+  constructor(from: T, to: T) {
+    this.from = from;
+    this.to = to;
+  }
+}
+
 function calculateKmPerHour(pace: number) {
   const metersPerSecond = 1000 / pace;
   return metersPerSecond * 3.6;
@@ -97,38 +109,45 @@ function formatNumber(num: number) {
 function calculateTotal(calcItem: PaceCalculatorItem) {
   calcItem.calculate();
 
-  let totalKilometers = 0;
-  let totalSeconds = 0;
+  const totalKilometers = new RangeValue(0, 0);
+  const totalSeconds = new RangeValue(0, 0);
 
-  for (const calc of calculators.value) {
-    totalKilometers += calc.distance;
-    totalSeconds += calc.seconds;
+  for (const side of ranges) {
+    for (const calc of calculators.value) {
+      if (calc.distance[side] > 0 && calc.distance[side] < Infinity) {
+        totalKilometers[side] += calc.distance[side];
+        totalSeconds[side] += calc.seconds;
+      }
+    }
+
+    totalDistance.value[side] = formatNumber(totalKilometers[side]);
+    totalKilometersPerHour.value[side] = formatNumber(totalKilometers[side] / (totalSeconds[side] / 3600));
   }
-
-  totalDistance.value = formatNumber(totalKilometers);
-  totalKilometersPerHour.value = formatNumber(totalKilometers / (totalSeconds / 3600));
 }
 
 class PaceCalculatorItem {
-  distance: number = 0;
-  seconds: number = 0;
-  pace: number = 0;
   repeats: number = 1;
-  kilometersPerHour: number = 0;
 
-  inputTime: string = '';
-  inputPace: string = '';
+  distance = new RangeValue(0, 0);
+  pace = new RangeValue(0, 0);
+  kilometersPerHour = new RangeValue(0, 0);
+  inputPace = new RangeValue('', '');
+
+  seconds = 0
+  inputTime = ''
 
   calculate() {
     this.seconds = stringToSeconds(this.inputTime);
-    this.pace = stringToSeconds(this.inputPace);
-
     if (this.seconds) {
       this.seconds *= this.repeats;
     }
 
-    this.kilometersPerHour = calculateKmPerHour(this.pace || 0);
-    this.distance = ((1000 / this.pace) * this.seconds) / 1000 || 0;
+    for (const side of ranges) {
+      this.pace[side] = stringToSeconds(this.inputPace[side]);
+
+      this.kilometersPerHour[side] = calculateKmPerHour(this.pace[side] || 0);
+      this.distance[side] = ((1000 / this.pace[side]) * this.seconds) / 1000 || 0;
+    }
   }
 }
 
@@ -200,9 +219,10 @@ function importWorkout() {
       const minPace = stringToSeconds(match[4])
       const maxPace = stringToSeconds(match[5])
 
-      calcItem.inputPace = secondsToString((maxPace + minPace) / 2, 2)
+      calcItem.inputPace.from = secondsToString(minPace, 2)
+      calcItem.inputPace.to = secondsToString(maxPace, 2)
     } else {
-      calcItem.inputPace = secondsToString(stringToSeconds(match[4]), 2)
+      calcItem.inputPace.from = secondsToString(stringToSeconds(match[4]), 2)
     }
 
     calcs.push(calcItem)
@@ -218,9 +238,19 @@ function importWorkout() {
   calculateTotal(calcs[0])
 }
 
+function anyCalculatorHasRange() {
+  for (const calc of calculators.value) {
+    if (calc.distance.to > 0 && calc.distance.to < Infinity) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 const calculators = ref([new PaceCalculatorItem()]);
-const totalDistance = ref(formatNumber(Infinity));
-const totalKilometersPerHour = ref(formatNumber(Infinity));
+const totalDistance = ref(new RangeValue(formatNumber(Infinity), formatNumber(Infinity)));
+const totalKilometersPerHour = ref(new RangeValue(formatNumber(Infinity), formatNumber(Infinity)));
 </script>
 
 <template>
@@ -250,7 +280,9 @@ const totalKilometersPerHour = ref(formatNumber(Infinity));
               @keyup="calculateTotal(calc)" />
           </td>
           <td>
-            <input type="text" class="input-pace" placeholder="mm:ss" v-model="calc.inputPace"
+            <input type="text" class="input-pace" placeholder="mm:ss" v-model="calc.inputPace.from"
+              @keyup="calculateTotal(calc)" />
+            &ndash; <input type="text" class="input-pace" placeholder="mm:ss" v-model="calc.inputPace.to"
               @keyup="calculateTotal(calc)" />
           </td>
           <td>
@@ -260,10 +292,18 @@ const totalKilometersPerHour = ref(formatNumber(Infinity));
           </td>
           <td>
             =
-            <span class="calculated-distance">{{ formatNumber(calc.distance) }} km ({{
-              formatNumber(calc.kilometersPerHour)
-            }}
-              km/h)</span>
+            <template v-if="calc.distance.to > 0 && calc.distance.to < Infinity">
+              <span class="calculated-distance">
+                {{ formatNumber(calc.distance.to) }}&ndash;{{ formatNumber(calc.distance.from) }} km
+                ({{ formatNumber(calc.kilometersPerHour.to) }}&ndash;{{ formatNumber(calc.kilometersPerHour.from) }}
+                km/h)</span>
+            </template>
+            <template v-else>
+              <span class="calculated-distance">{{ formatNumber(calc.distance.from) }} km ({{
+                formatNumber(calc.kilometersPerHour.from)
+              }}
+                km/h)</span>
+            </template>
           </td>
         </tr>
       </tbody>
@@ -272,16 +312,22 @@ const totalKilometersPerHour = ref(formatNumber(Infinity));
           <td colspan="4"></td>
           <td>
             =
-            <span class="calculated-distance">{{ totalDistance }} km ({{ totalKilometersPerHour }} km/h avg.)</span>
+            <template v-if="anyCalculatorHasRange()">
+              <span class="calculated-distance">{{ totalDistance.to }}&ndash;{{ totalDistance.from }} km (
+                {{ totalKilometersPerHour.to }}&ndash;{{ totalKilometersPerHour.from }} km/h avg.)</span>
+            </template>
+            <template v-else>
+              <span class="calculated-distance">{{ totalDistance.from }} km ({{ totalKilometersPerHour.from }} km/h avg.)</span>
+            </template>
           </td>
         </tr>
       </tfoot>
     </table>
   </div>
   <div>
+    <h3>Import Workout from TrainingPeaks</h3>
     <p>
-      <h3>Import Workout from TrainingPeaks</h3>
-      <textarea id="txt-workout-import">
+    <textarea id="txt-workout-import">
 # Example workout for testing
 Warm up
 15 min @ 05:44 min/km
@@ -291,7 +337,7 @@ Warm up
 20:30 min @ 05:44-06:33 min/km
 Zone 1-Zone 2
 
-Repeat 15 times
+    Repeat 15 times
 
     Hard
     30 sec @ 03:59-04:22 min/km
@@ -305,7 +351,7 @@ Cool Down
 10 min @ 05:44-06:33 min/km
 Zone 1-Zone 2
 
-Repeat 7 times
+    Repeat 7 times
 
     Hard
     1:30 min @ 03:59-04:22 min/km
@@ -318,7 +364,7 @@ Repeat 7 times
 Cool Down
 15 min @ 05:44 min/km
 Zone 2
-      </textarea>
+  </textarea>
     </p>
     <button @click="importWorkout()">Import</button>
   </div>
@@ -326,7 +372,7 @@ Zone 2
 
 <style scoped>
 input.input-pace {
-  width: 40%;
+  width: 20%;
 }
 
 input.input-time {
