@@ -14,6 +14,10 @@ class RangeValue<T> {
 }
 
 function calculateKmPerHour(pace: number) {
+  if (pace === 0) {
+    return 0;
+  }
+
   const metersPerSecond = 1000 / pace;
   return metersPerSecond * 3.6;
 }
