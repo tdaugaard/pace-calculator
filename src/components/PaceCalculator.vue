@@ -181,6 +181,15 @@ function importWorkout() {
   const calcs: PaceCalculatorItem[] = [];
   let numberOfRepeats = 1
 
+  // Find the general indent level
+  const indentLevel = lines.reduce((minIndent, line) => {
+    const match = line.match(/^(\s*)\S/);
+    if (match) {
+      return Math.min(minIndent, match[1].length);
+    }
+    return minIndent;
+  }, Infinity);
+
   let match
   for (const line of lines) {
     match = line.match(/Repeat\s+([0-9]+)\s+times/i);
@@ -196,9 +205,9 @@ function importWorkout() {
 
     const calcItem = new PaceCalculatorItem();
 
-    // If the line is prefixed with any number of spaces, it's considered a sub-item and will be repeated
-    // if numberOfRepeats > 1
-    if (match[1] && numberOfRepeats > 1) {
+    // If the line is prefixed with a number of spaces larger than 'indentLevel',
+    // it's considered a sub-item and will be repeated if numberOfRepeats > 1
+    if (match[1].length > indentLevel && numberOfRepeats > 1) {
       calcItem.repeats = numberOfRepeats
     }
 
@@ -339,13 +348,13 @@ Zone 1-Zone 2
 
     Repeat 15 times
 
-    Hard
-    30 sec @ 03:59-04:22 min/km
-    Zone 5b-Zone 5c
+      &nbsp;&nbsp;&nbsp;&nbsp;Hard
+      &nbsp;&nbsp;&nbsp;&nbsp;30 sec @ 03:59-04:22 min/km
+      &nbsp;&nbsp;&nbsp;&nbsp;Zone 5b-Zone 5c
 
-    Easy
-    30 sec @ 05:24-06:07 min/km
-    Zone 1-Zone 2
+      &nbsp;&nbsp;&nbsp;&nbsp;Easy
+      &nbsp;&nbsp;&nbsp;&nbsp;30 sec @ 05:24-06:07 min/km
+      &nbsp;&nbsp;&nbsp;&nbsp;Zone 1-Zone 2
 
 Cool Down
 10 min @ 05:44-06:33 min/km
@@ -353,13 +362,13 @@ Zone 1-Zone 2
 
     Repeat 7 times
 
-    Hard
-    1:30 min @ 03:59-04:22 min/km
-    Zone 5b-Zone 5c
+      &nbsp;&nbsp;&nbsp;&nbsp;Hard
+      &nbsp;&nbsp;&nbsp;&nbsp;1:30 min @ 03:59-04:22 min/km
+      &nbsp;&nbsp;&nbsp;&nbsp;Zone 5b-Zone 5c
 
-    Easy
-    30 sec @ 05:24-06:07 min/km
-    Zone 1-Zone 2
+      &nbsp;&nbsp;&nbsp;&nbsp;Easy
+      &nbsp;&nbsp;&nbsp;&nbsp;30 sec @ 05:24-06:07 min/km
+      &nbsp;&nbsp;&nbsp;&nbsp;Zone 1-Zone 2
 
 Cool Down
 15 min @ 05:44 min/km
