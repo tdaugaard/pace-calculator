@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 
 const tableDisplayEverything = ref(false);
+const DISTANCE_ONE_MILE = 1.609344;
 
 const props = defineProps<{
   paceRange: string;
@@ -15,7 +16,7 @@ function kmToMile(distance: number) {
 }
 
 function mileToKm(distance: number) {
-  return distance * 1.609344;
+  return distance * DISTANCE_ONE_MILE;
 }
 
 function calculateKmPerHour(pace: number) {
@@ -153,10 +154,11 @@ const paceZoneLabels = [
 
 // In kilometers
 const runDistances = {
+  'Mile': DISTANCE_ONE_MILE,
   '5K': 5,
   '10K': 10,
-  'Half Marathon': 21.0975,
-  'Marathon': 42.195,
+  'Half': 21.0975,
+  'Full': 42.195,
 };
 
 const tableData: paceTable = {
