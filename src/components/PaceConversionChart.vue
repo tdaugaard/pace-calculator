@@ -93,13 +93,13 @@ function findPaceZone(pace: number, paceZones: IPaceZones) {
 
 function getPaceZoneLabel(paceZones: IPaceZones, paceZone: number) {
   if (paceZone === 6) {
-    return `> ${secondsToTimeString(paceZones[paceZones.length - 1])}`;
+    return `< ${secondsToTimeString(paceZones[paceZones.length - 2] - paceIncrement)}`;
   }
   if (paceZone === 1) {
-    return `< ${secondsToTimeString(paceZones[0])}`;
+    return `> ${secondsToTimeString(paceZones[0])}`;
   }
 
-  return `${secondsToTimeString(paceZones[paceZone - 1])} - ${secondsToTimeString(paceZones[paceZone])}`;
+  return `${secondsToTimeString(paceZones[paceZone - 2] - paceIncrement)} - ${secondsToTimeString(paceZones[paceZone - 1])}`;
 }
 
 class PaceTableData {
