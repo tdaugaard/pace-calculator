@@ -10,12 +10,12 @@ const props = defineProps<{
   paceZones: string;
 }>();
 
-function kmToMile(speed: number) {
-  return speed * 0.621371192;
+function kmToMile(distance: number) {
+  return distance * 0.621371192;
 }
 
-function mileToKm(speed: number) {
-  return speed * 1.609344;
+function mileToKm(distance: number) {
+  return distance * 1.609344;
 }
 
 function calculateKmPerHour(pace: number) {
@@ -151,12 +151,12 @@ const paceZoneLabels = [
   'Anaerobic',
 ]
 
-// In meters
+// In kilometers
 const runDistances = {
-  '5K': 5000,
-  '10K': 10000,
-  'Half Marathon': 21975,
-  'Marathon': 42195,
+  '5K': 5,
+  '10K': 10,
+  'Half Marathon': 21.0975,
+  'Marathon': 42.195,
 };
 
 const tableData: paceTable = {
@@ -214,7 +214,7 @@ function renderPaceTable() {
     );
 
     Object.values(runDistances).forEach(v => {
-      item.distanceTime.push((v / 1000) * pace);
+      item.distanceTime.push(v * pace);
     });
 
     tableData.data.push(item);
